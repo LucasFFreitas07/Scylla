@@ -67,32 +67,12 @@ def render_table(procs: list[ProcessInfo], *, top: int | None = None) -> None:
 
 
 LOGO = r"""
-Xx$XxXX$X++xx++&&x+;xXXX&X+X&XXx++&+&:+$
-;&;x&xxxx&&&&&x+&&&X;&xx&+x&$xXx+xxXx&xx
-Xx+&&&xX+&xx&x;;+x&x&+&+&xxx&&&xX$&&xxx+
-&+&xxxx&&x&+.:;+;;;+x+::;;x&xxxXxx+x&xxx
-xx&++;;;++x;;;:&+;;;;:;;;;;:;;;+&x&xX&Xx
-XXX:;+::+:x+;&+;x$x;+;;;;+:;+xx+. +XXXXX
-$xX;.&+;.:;;; :.;;;;.::;&x+:.+xX:;:XX$$$
-$xXx: .+;;+;. +;:.;:.;.;:;&+ &;x+;+X$XxX
-&+xx&x&.;+;;::;:::;:;x.+;:+;+.+&x+&&XXXX
-+&&&&&++&+;:;&.+&&:+:&;xX+:+++&&+;+x&&XX
-;x&+&&x+;::;++;+;;:+;+;;xx+:;;;:+&xx+xXX
-:;::::.;+++;;.:..:+;::+;x&&+:;;++;&$xXxx
- +;;;;;:+;;:::;;++;;;;;+:;+;;:;&+x&&xxxx
-+:..+:+;.:+:;+::+;.;;:;;+::::&;+:;:.++::
-+.:; .:+;+.;& :;;;;+.+++;;;:++:+;+;;:+.;
-++;++  :+:;+&+;x++ +;;:;:;::&;++.;&::;+;
-&;;:++:.:++x;+&+&+:.:;;&+;&+;+&;: ;+++;+
-x&+::+x;..::+:;;...&+:;&xxx++&+++;.;;+++
-+;&+:.:&&&x;. :;+&&&x;;;+:.:.;;;:; &&;;;
-.:+++.:.   ;+++;;;;.+:;+;:;;;+&++ .;+&;+
-;+;++;;&x;:;+;&;+++&&:+;x+;++&&;+:;+.;&&
-+++;+;++++;;.++&++&;:;.;::++;.;:+++++++;
-+::&;&+:  ;+:+&&&;.;:.:;+;+:;&+::+  ....
-&;&;+;:;;;:+&x&+;&:::+&;+:;x;::.:::;+;&&
-&;++:++&;;&+;+;++:;+:;;:&&++:. ::.+x;x+;
-:;;;++;:;;++;;;;;;;;;++;+;::.:;++++;+;;:
+███████╗ ██████╗██╗   ██╗██╗     ██╗      █████╗
+██╔════╝██╔════╝╚██╗ ██╔╝██║     ██║     ██╔══██╗
+███████╗██║      ╚████╔╝ ██║     ██║     ███████║
+╚════██║██║       ╚██╔╝  ██║     ██║     ██╔══██║
+███████║╚██████╗   ██║   ███████╗███████╗██║  ██║
+╚══════╝ ╚═════╝   ╚═╝   ╚══════╝╚══════╝╚═╝  ╚═╝
 """
 
 
@@ -100,41 +80,25 @@ DARK_BLUE = "#003B73"
 
 
 def welcome_screen() -> None:
-    """Tela de apresentação estilo Hermes Agent (comandos ao lado da arte)."""
-    right_col: list[str] = [
-        f"[bold {DARK_BLUE}]Gerenciador de processos[/]",
-        f"[bold {DARK_BLUE}]e Docker para Linux[/]",
-        "",
-        "[yellow]Comandos:[/] ps | kill <PID>",
-        "| dps | help | exit",
-        "",
-        "[dim]Dica: d* = docker, dc* = compose[/]",
-        "[dim]Tab autocompleta, ↑/↓, Ctrl+D[/]",
-    ]
-    art_lines = LOGO.strip("\n").split("\n")
-    art_width = max(len(line) for line in art_lines)
-    info_start = max(0, (len(art_lines) - len(right_col)) // 2)
-
-    content = Text()
-    for i, art_line in enumerate(art_lines):
-        row = Text(art_line.ljust(art_width), style=f"bold {DARK_BLUE}")
-        row.append("  ")
-        idx = i - info_start
-        if 0 <= idx < len(right_col) and right_col[idx]:
-            row.append(Text.from_markup(right_col[idx]))
-        content.append(row)
-        if i < len(art_lines) - 1:
-            content.append("\n")
-
+    """Tela de apresentação estilo Hermes Agent."""
+    info = Text.from_markup(
+        f"[bold {DARK_BLUE}]Gerenciador de processos e Docker para Linux[/]\n\n"
+        "[yellow]Comandos:[/] [bold]ps[/] | [bold]kill <PID>[/] | [bold]dps[/] "
+        "| [bold]help[/] | [bold]exit[/]\n"
+        "[dim]Dica: d* = docker (dps, dlog...), dc* = compose (dcup, dcdown...). "
+        "Tab autocompleta, ↑/↓, Ctrl+D encerra.[/]"
+    )
     panel = Panel(
-        content,
+        info,
         title=f"[bold {DARK_BLUE}]Scylla CLI[/]  [dim]v{__version__}[/]",
         subtitle=f"digite [bold {DARK_BLUE}]help[/] para ajuda completa",
         border_style=DARK_BLUE,
         box=box.ROUNDED,
         padding=(1, 2),
     )
-    get_console().print(panel)
+    console = get_console()
+    console.print(LOGO, style=f"bold {DARK_BLUE}", highlight=False)
+    console.print(panel)
 
 
 def show_process_panel(proc: ProcessInfo) -> None:
