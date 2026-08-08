@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 from pathlib import Path
 
 import structlog
@@ -26,6 +27,7 @@ from scylla.ui import (
 COMMANDS = [
     "ps",
     "kill",
+    "exec",
     "dps",
     "dpsa",
     "di",
@@ -69,6 +71,10 @@ HELP_TEXT = """\
   [bold]dcdown[/]           docker compose down
   [bold]dclog[/]            docker compose logs
   [bold]dcrestart[/]        docker compose restart
+
+[bold cyan]Terminal:[/]
+  [bold]exec <cmd>[/]      Roda um comando de terminal (ex.: exec ls -la)
+  [bold]!<cmd>[/]          Atalho do exec (!ls -la)
 
   [bold]help[/]            Mostra esta ajuda
   [bold]clear[/]           Limpa a tela
@@ -173,6 +179,33 @@ def _run_docker(docker_args: list[str]) -> None:
     log.debug("docker_ok", args=docker_args, exit_code=code)
 
 
+def _run_exec(args: list[str]) -> None:
+    """Executa um comando de terminal dentro do shell (herda stdout/stderr).
+
+    Disponível apenas no modo interativo — não há one-shot equivalente.
+    """
+    log = structlog.get_logger("scylla.shell.exec")
+    command = " ".join(args).strip()
+    if not command:
+        print_error("Uso: exec <comando>")
+        return
+    log.info("executando", comando=command)
+    try:
+        result = subprocess.run(command, shell=True, check=False)
+    except KeyboardInterrupt:
+        get_console().print("[yellow]Comando interrompido.[/]")
+        log.warning("exec_interrompido", comando=command)
+        return
+    except OSError as exc:
+        print_error(f"Falha ao executar: {exc}")
+        log.error("exec_falhou", erro=str(exc))
+        return
+    if result.returncode != 0:
+        get_console().print(f"[dim]exit code: {result.returncode}[/]")
+        log.warning("exec_exit_nao_zero", comando=command, exit_code=result.returncode)
+    log.debug("exec_ok", comando=command, exit_code=result.returncode)
+
+
 def run_shell() -> None:
     """Loop principal: tela de apresentação + prompt persistente."""
     log = structlog.get_logger("scylla.shell")
@@ -194,6 +227,10 @@ def run_shell() -> None:
         text = raw.strip()
         if not text:
             continue
+        if text.startswith("!"):
+            # Atalho: !<comando> roda direto no terminal
+            _run_exec([text[1:].strip()])
+            continue
         parts = text.split()
         cmd, args = parts[0].lower(), parts[1:]
         if cmd in ("exit", "quit"):
@@ -202,6 +239,8 @@ def run_shell() -> None:
             _run_ps(args)
         elif cmd == "kill":
             _run_kill(args)
+        elif cmd == "exec":
+            _run_exec(args)
         elif cmd in DOCKER_COMMANDS:
             _run_docker(DOCKER_COMMANDS[cmd])
         elif cmd in ARGS_COMMANDS:

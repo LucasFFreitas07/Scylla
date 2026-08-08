@@ -300,3 +300,114 @@ def test_shell_docker_falta_argumento(
     err = capsys.readouterr().err
 
     assert f"Uso: {entrada} <nome>" in err
+
+
+# ---------------------------------------------------------------------------
+# exec (comandos de terminal, apenas no shell)
+# ---------------------------------------------------------------------------
+
+
+class _FakeResult:
+    def __init__(self, returncode: int = 0) -> None:
+        self.returncode = returncode
+
+
+def test_shell_exec_roda_comando(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    chamadas: list[tuple[str, dict]] = []
+
+    def fake_run(cmd: str, **kwargs: object) -> _FakeResult:
+        chamadas.append((cmd, kwargs))
+        return _FakeResult(0)
+
+    monkeypatch.setattr(shell.subprocess, "run", fake_run)
+    monkeypatch.setattr(FakeSession, "inputs", ["exec echo oi", "exit"])
+    monkeypatch.setattr(shell, "PromptSession", FakeSession)
+
+    shell.run_shell()
+
+    assert chamadas == [("echo oi", {"shell": True, "check": False})]
+
+
+def test_shell_exec_atalho_bang(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    chamadas: list[str] = []
+
+    def fake_run(cmd: str, **kwargs: object) -> _FakeResult:
+        chamadas.append(cmd)
+        return _FakeResult(0)
+
+    monkeypatch.setattr(shell.subprocess, "run", fake_run)
+    monkeypatch.setattr(FakeSession, "inputs", ["!ls -la", "exit"])
+    monkeypatch.setattr(shell, "PromptSession", FakeSession)
+
+    shell.run_shell()
+
+    assert chamadas == ["ls -la"]
+
+
+def test_shell_exec_sem_argumento(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(FakeSession, "inputs", ["exec", "exit"])
+    monkeypatch.setattr(shell, "PromptSession", FakeSession)
+    # subprocess.run não deve ser chamado sem comando
+    monkeypatch.setattr(
+        shell.subprocess, "run", lambda cmd, **kw: pytest.fail("não deveria executar")
+    )
+
+    shell.run_shell()
+    err = capsys.readouterr().err
+
+    assert "Uso: exec <comando>" in err
+
+
+def test_shell_exec_exit_code_nao_zero(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(
+        shell.subprocess, "run", lambda cmd, **kw: _FakeResult(2)
+    )
+    monkeypatch.setattr(FakeSession, "inputs", ["exec false", "exit"])
+    monkeypatch.setattr(shell, "PromptSession", FakeSession)
+
+    shell.run_shell()
+    out = capsys.readouterr().out
+
+    assert "exit code: 2" in out
+
+
+def test_shell_exec_interrompido_continua(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    def fake_run(cmd: str, **kwargs: object) -> _FakeResult:
+        raise KeyboardInterrupt()
+
+    monkeypatch.setattr(shell.subprocess, "run", fake_run)
+    monkeypatch.setattr(FakeSession, "inputs", ["exec sleep 100", "ps", "exit"])
+    monkeypatch.setattr(shell, "PromptSession", FakeSession)
+    monkeypatch.setattr(shell, "list_processes", lambda: [])
+
+    shell.run_shell()
+    out = capsys.readouterr().out
+
+    assert "interrompido" in out
+    assert "Processos" in out  # o shell continuou após o Ctrl+C
+
+
+def test_shell_exec_oserror(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    def fake_run(cmd: str, **kwargs: object) -> _FakeResult:
+        raise OSError("boom")
+
+    monkeypatch.setattr(shell.subprocess, "run", fake_run)
+    monkeypatch.setattr(FakeSession, "inputs", ["exec foo", "exit"])
+    monkeypatch.setattr(shell, "PromptSession", FakeSession)
+
+    shell.run_shell()
+    err = capsys.readouterr().err
+
+    assert "Falha ao executar" in err
