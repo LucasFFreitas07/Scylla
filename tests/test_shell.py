@@ -50,7 +50,7 @@ def test_shell_ps_e_exit(
     out = capsys.readouterr().out
 
     assert "Scylla CLI" in out  # tela de apresentação
-    assert "Xx$XxxXXX" in out  # arte ASCII do logo (imagem convertida, 50x32)
+    assert "Xx$XxXX$X++" in out  # arte ASCII do logo (imagem convertida, 40x26)
     assert "bash" in out  # resultado do ps dentro do shell
     assert "PID" in out
 

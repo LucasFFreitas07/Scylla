@@ -64,38 +64,32 @@ def render_table(procs: list[ProcessInfo]) -> None:
 
 
 LOGO = r"""
-Xx$XxxXXX$X+++Xx++&&&x+;;xXXXx&X+xX&XXxx++&+&&:+$X
-;&;xx&xx&xx&&&&&&x&+&&&XX;&xx&&+x&&$xXx&+xxxXx&xxx
-Xx++x&&xXX+&xx&&x;;;+x&x&&+&+&&xxx&&&&xxX$&+xxxxx:
-&+&xxxxx&&&x&&+.:;+;;;;&+x+:.:;;x&&xxxXxxx+x&&xxx&
-&X+X;;;;;x&+&& ;..;;:.+:+; ++;;;:;;;;;;xXx+&xx+Xxx
-x&x;.&:; .;&X+.;+:xX&&:;+;;:;:::;::;;:+;;xxX$XxXXx
-XXX;.;+:.:+:x&:;&+:+x$x:;+;;;:;+:;:+xxx:. +XxXXXXX
-$xX+..&++:.:;:;; :: ;;;:;.::;:&x+;..+xXx:;:x$X$$$X
-$xX&x: .+;;;++.. ++::.;::.;.+.:;&&+ &;xx+;+x$$XxXX
-x&X&&&&;.:..   ..:;+;:++.&&::; ;;;&;:;+X$&&+XXXXXX
-;+&Xx&xx :&x&&&;:+   ...; x &&& & ;& &;++;&&+xXXXx
-+&&+x&&+;+&+;; ;&.:x&&:&;:&;&xX+:x.++&&&+;+X&&&XxX
-;x&;+&&x;&;::;:++;;+;;:+;;+;.+xx+ ;;;;:.+&xx&+xXxX
-:;:.;::.:;+++:;;.:...:++:::+;:x&&+&:;;;&+;&$XxXxxx
- ;;;;; ;:;;&&+:.++;&x&::++;+&:::x&:;:;;++xxx&&xxXX
- +::;;&:.:&.. :: ::;.:;+::::++:;.:.:::xx&x;+xxxx++
-+:...+:++:.:+::;+:::+;.+.;:;;:+::.;:&;;&:;: .++:::
-+.::; .:;&;+.+.& :;;;;;+;.++++;;; ;++:+;;+;;::+.;;
-++;+;+   ;+:;;+&+;xx++ &+;;:;;:;:::&;++&.;&+ :;++:
-&;; ;++: .:++xx;+&++&+:. :;;&&+;&;+;+&:;: ;;+++;;&
-&;;;.;+x . .;++;;&+&:::+x+:;xxxxx&+;x+;;:+:;++&+&:
-$x&:; +&&x..   +       x&&.:;&&x&&;&++:xx: & :;++x
-+;&+&:.:x;&&x;;. :;;+&&+xx;;;:+:.; .;;+.:; ;x&;;;:
-.:++;+.::    :;++++:;;; :+:;+;;:;;;;+&+++ .+:+&;+;
-;+;;++;;&&x;::;+;&:+++++x&:+:+x+;;&+&&;;+:;&+.;&+x
-&&+::+;+&:++;;; &+x&&&++; ;.::.;;;++:&.:++;::;++;:
-+;+;++:;&:+&;.&:;&+&++x+:;:.;;:.++;: .;;++&x+++;:+
-+::x+;&+.:  ;&::+&x;&;.;::.:+.+;+:.;&++ :+   ....
-&;&:++;::;;;:++&x&++;&::::+&;;+:;x&;::..::::;+;&x+
-&;++;:++X;;;&++;+;;++:;++:;;::&&+&::. :::.+x&;x+;:
-.:+;;++::;;;;&++;::::::+:::;:;+;..:.:;.+++&:++;+;;
-;+:;;;;;;::;++::;+&;;;;;:;&&&:;::&..::X;&;;:++;:::
+Xx$XxXX$X++xx++&&x+;xXXX&X+X&XXx++&+&:+$
+;&;x&xxxx&&&&&x+&&&X;&xx&+x&$xXx+xxXx&xx
+Xx+&&&xX+&xx&x;;+x&x&+&+&xxx&&&xX$&&xxx+
+&+&xxxx&&x&+.:;+;;;+x+::;;x&xxxXxx+x&xxx
+xx&++;;;++x;;;:&+;;;;:;;;;;:;;;+&x&xX&Xx
+XXX:;+::+:x+;&+;x$x;+;;;;+:;+xx+. +XXXXX
+$xX;.&+;.:;;; :.;;;;.::;&x+:.+xX:;:XX$$$
+$xXx: .+;;+;. +;:.;:.;.;:;&+ &;x+;+X$XxX
+&+xx&x&.;+;;::;:::;:;x.+;:+;+.+&x+&&XXXX
++&&&&&++&+;:;&.+&&:+:&;xX+:+++&&+;+x&&XX
+;x&+&&x+;::;++;+;;:+;+;;xx+:;;;:+&xx+xXX
+:;::::.;+++;;.:..:+;::+;x&&+:;;++;&$xXxx
+ +;;;;;:+;;:::;;++;;;;;+:;+;;:;&+x&&xxxx
++:..+:+;.:+:;+::+;.;;:;;+::::&;+:;:.++::
++.:; .:+;+.;& :;;;;+.+++;;;:++:+;+;;:+.;
+++;++  :+:;+&+;x++ +;;:;:;::&;++.;&::;+;
+&;;:++:.:++x;+&+&+:.:;;&+;&+;+&;: ;+++;+
+x&+::+x;..::+:;;...&+:;&xxx++&+++;.;;+++
++;&+:.:&&&x;. :;+&&&x;;;+:.:.;;;:; &&;;;
+.:+++.:.   ;+++;;;;.+:;+;:;;;+&++ .;+&;+
+;+;++;;&x;:;+;&;+++&&:+;x+;++&&;+:;+.;&&
++++;+;++++;;.++&++&;:;.;::++;.;:+++++++;
++::&;&+:  ;+:+&&&;.;:.:;+;+:;&+::+  ....
+&;&;+;:;;;:+&x&+;&:::+&;+:;x;::.:::;+;&&
+&;++:++&;;&+;+;++:;+:;;:&&++:. ::.+x;x+;
+:;;;++;:;;++;;;;;;;;;++;+;::.:;++++;+;;:
 """
 
 
@@ -103,18 +97,32 @@ DARK_BLUE = "#003B73"
 
 
 def welcome_screen() -> None:
-    """Tela de apresentação estilo Hermes Agent (logo dentro do painel)."""
-    logo = Text(LOGO, style=f"bold {DARK_BLUE}")
-    info = Text.from_markup(
-        f"\n[bold {DARK_BLUE}]Gerenciador de processos e Docker para Linux[/]\n\n"
-        "[yellow]Comandos:[/] [bold]ps[/] | [bold]kill <PID>[/] | [bold]dps[/] "
-        "| [bold]help[/] | [bold]exit[/]\n"
-        "[dim]Dica: d* = docker (dps, dlog...), dc* = compose (dcup, dcdown...). "
-        "Tab autocompleta, ↑/↓ navega o histórico, Ctrl+D encerra.[/]"
-    )
+    """Tela de apresentação estilo Hermes Agent (comandos ao lado da arte)."""
+    right_col: list[str] = [
+        f"[bold {DARK_BLUE}]Gerenciador de processos[/]",
+        f"[bold {DARK_BLUE}]e Docker para Linux[/]",
+        "",
+        "[yellow]Comandos:[/] ps | kill <PID>",
+        "| dps | help | exit",
+        "",
+        "[dim]Dica: d* = docker, dc* = compose[/]",
+        "[dim]Tab autocompleta, ↑/↓, Ctrl+D[/]",
+    ]
+    art_lines = LOGO.strip("\n").split("\n")
+    art_width = max(len(line) for line in art_lines)
+    info_start = max(0, (len(art_lines) - len(right_col)) // 2)
+
     content = Text()
-    content.append(logo)
-    content.append(info)
+    for i, art_line in enumerate(art_lines):
+        row = Text(art_line.ljust(art_width), style=f"bold {DARK_BLUE}")
+        row.append("  ")
+        idx = i - info_start
+        if 0 <= idx < len(right_col) and right_col[idx]:
+            row.append(Text.from_markup(right_col[idx]))
+        content.append(row)
+        if i < len(art_lines) - 1:
+            content.append("\n")
+
     panel = Panel(
         content,
         title=f"[bold {DARK_BLUE}]Scylla CLI[/]  [dim]v{__version__}[/]",
