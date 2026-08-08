@@ -1,7 +1,8 @@
 # Scylla CLI
 
-Ferramenta de linha de comando para **visualizar e matar processos** no Linux, com
-sessão interativa persistente (estilo Hermes Agent) e comandos one-shot.
+Ferramenta de linha de comando para **visualizar e matar processos** e **operar
+Docker/Docker Compose** no Linux, com sessão interativa persistente (estilo
+Hermes Agent) e comandos one-shot.
 
 ## Instalação
 
@@ -25,12 +26,37 @@ Abre uma tela de apresentação (logo, versão e dicas) e um prompt contínuo:
 ```
 scylla> ps
 scylla> kill 1234
+scylla> dps
+scylla> dcup
 scylla> help
 scylla> exit
 ```
 
-Comandos do shell: `ps`, `kill <PID>`, `help`, `clear`, `exit`. Tab autocompleta,
-↑/↓ navega o histórico (salvo em `~/.cache/scylla/history`), `Ctrl+D` encerra.
+Comandos do shell: `ps`, `kill <PID>`, `help`, `clear`, `exit` + comandos Docker
+(abaixo). Tab autocompleta, ↑/↓ navega o histórico (salvo em
+`~/.cache/scylla/history`), `Ctrl+D` encerra.
+
+## Comandos Docker (comandos mínimos)
+
+| Comando | Equivale a | Descrição |
+|---|---|---|
+| `dps` | `docker ps` | Containers em execução |
+| `dpsa` | `docker ps -a` | Todos os containers |
+| `di` | `docker images` | Imagens locais |
+| `dlog <ctr>` | `docker logs <container>` | Logs de um container |
+| `dstop <ctr>` | `docker stop <container>` | Para um container |
+| `dstart <ctr>` | `docker start <container>` | Inicia um container |
+| `drm <ctr>` | `docker rm <container>` | Remove um container |
+| `drmi <img>` | `docker rmi <imagem>` | Remove uma imagem |
+| `dcps` | `docker compose ps` | Serviços do compose |
+| `dcup` | `docker compose up -d` | Sobe serviços em segundo plano |
+| `dcdown` | `docker compose down` | Derruba os serviços |
+| `dclog` | `docker compose logs` | Logs dos serviços |
+| `dcrestart` | `docker compose restart` | Reinicia os serviços |
+
+Todos funcionam dentro do shell **e** como one-shot (`scylla dps`, `scylla dcup`, ...).
+A saída do docker é passada direto (formatação nativa preservada) e o exit code é
+propagado. Docker ausente ou sem permissão no socket exibe o erro do próprio docker.
 
 ### Modo one-shot
 
@@ -82,9 +108,10 @@ uv run mypy src/           # checagem de tipos
 
 ```
 src/scylla/
-├── cli.py            # app Typer: ps, kill, opções globais
+├── cli.py            # app Typer: ps, kill, dps..., opções globais
 ├── shell.py          # REPL persistente (prompt_toolkit)
 ├── processes.py      # listagem/kill via psutil
+├── dockertools.py    # comandos docker/docker compose (subprocess)
 ├── ui.py             # rich: tabela, tela de apresentação, confirmação
 ├── logging_setup.py  # structlog (JSON em pipes, colorido no TTY)
 └── errors.py         # exceções customizadas + exit codes

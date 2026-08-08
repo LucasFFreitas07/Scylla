@@ -1,6 +1,6 @@
 [project]
 name = "scylla"
-version = "0.1.0"
+version = "0.2.0"
 description = "Ferramenta CLI para visualizar e matar processos (Linux)"
 readme = "README.md"
 requires-python = ">=3.11"

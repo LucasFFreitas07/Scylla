@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from functools import cache
-
 import questionary
 from rich import box
 from rich.console import Console
@@ -15,14 +13,16 @@ from scylla import __version__
 from scylla.processes import ProcessInfo
 
 
-# Console criado de forma preguiçosa (lazy) para que, em testes com
-# CliRunner/capsys, ele capture o stdout/stderr isolado no momento do uso.
-@cache
 def get_console() -> Console:
+    """Console para stdout, criado no momento do uso.
+
+    Criar por chamada (em vez de cachear) garante que, em testes com
+    CliRunner/capsys, o console capture o stdout/stderr isolado no momento
+    da impressão e não segure arquivos fechados de testes anteriores.
+    """
     return Console()
 
 
-@cache
 def get_err_console() -> Console:
     return Console(stderr=True)
 
@@ -76,10 +76,11 @@ LOGO = r"""
 def welcome_screen() -> None:
     """Tela de apresentação estilo Hermes Agent."""
     content = Text.from_markup(
-        "[bold cyan]Gerenciador de processos para Linux[/]\n\n"
-        "[yellow]Comandos:[/] [bold]ps[/] | [bold]kill <PID>[/] | [bold]help[/] "
-        "| [bold]clear[/] | [bold]exit[/]\n"
-        "[dim]Dica: Tab autocompleta, ↑/↓ navega o histórico, Ctrl+D encerra.[/]"
+        "[bold cyan]Gerenciador de processos e Docker para Linux[/]\n\n"
+        "[yellow]Comandos:[/] [bold]ps[/] | [bold]kill <PID>[/] | [bold]dps[/] "
+        "| [bold]help[/] | [bold]exit[/]\n"
+        "[dim]Dica: d* = docker (dps, dlog...), dc* = compose (dcup, dcdown...). "
+        "Tab autocompleta, ↑/↓ navega o histórico, Ctrl+D encerra.[/]"
     )
     panel = Panel(
         content,

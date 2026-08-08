@@ -11,6 +11,7 @@ from prompt_toolkit.completion import WordCompleter
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.styles import Style
 
+from scylla.dockertools import ARGS_COMMANDS, DOCKER_COMMANDS, run_docker
 from scylla.errors import ScyllaError
 from scylla.processes import get_process_info, kill_process, list_processes
 from scylla.ui import (
@@ -22,7 +23,27 @@ from scylla.ui import (
     welcome_screen,
 )
 
-COMMANDS = ["ps", "kill", "help", "clear", "exit", "quit"]
+COMMANDS = [
+    "ps",
+    "kill",
+    "dps",
+    "dpsa",
+    "di",
+    "dlog",
+    "dstop",
+    "dstart",
+    "drm",
+    "drmi",
+    "dcps",
+    "dcup",
+    "dcdown",
+    "dclog",
+    "dcrestart",
+    "help",
+    "clear",
+    "exit",
+    "quit",
+]
 
 PROMPT_STYLE = Style.from_dict({"prompt": "bold cyan"})
 
@@ -31,6 +52,24 @@ HELP_TEXT = """\
 
   [bold]ps[/]               Lista os processos em uma tabela
   [bold]kill <PID>[/]      Mata um processo (com confirmação)
+
+[bold cyan]Docker:[/]
+  [bold]dps[/]              docker ps (containers em execução)
+  [bold]dpsa[/]             docker ps -a (todos os containers)
+  [bold]di[/]               docker images (imagens locais)
+  [bold]dlog <ctr>[/]       docker logs <container>
+  [bold]dstop <ctr>[/]      docker stop <container>
+  [bold]dstart <ctr>[/]     docker start <container>
+  [bold]drm <ctr>[/]        docker rm <container>
+  [bold]drmi <img>[/]       docker rmi <imagem>
+
+[bold cyan]Docker Compose:[/]
+  [bold]dcps[/]             docker compose ps
+  [bold]dcup[/]             docker compose up -d
+  [bold]dcdown[/]           docker compose down
+  [bold]dclog[/]            docker compose logs
+  [bold]dcrestart[/]        docker compose restart
+
   [bold]help[/]            Mostra esta ajuda
   [bold]clear[/]           Limpa a tela
   [bold]exit[/]            Sai do scylla (ou Ctrl+D)
@@ -93,6 +132,12 @@ def _run_kill(args: list[str]) -> None:
     log.info("kill_ok", pid=pid)
 
 
+def _run_docker(docker_args: list[str]) -> None:
+    log = structlog.get_logger("scylla.shell.docker")
+    code = run_docker(docker_args)
+    log.debug("docker_ok", args=docker_args, exit_code=code)
+
+
 def run_shell() -> None:
     """Loop principal: tela de apresentação + prompt persistente."""
     log = structlog.get_logger("scylla.shell")
@@ -122,6 +167,13 @@ def run_shell() -> None:
             _run_ps()
         elif cmd == "kill":
             _run_kill(args)
+        elif cmd in DOCKER_COMMANDS:
+            _run_docker(DOCKER_COMMANDS[cmd])
+        elif cmd in ARGS_COMMANDS:
+            if len(args) != 1:
+                print_error(f"Uso: {cmd} <nome>")
+            else:
+                _run_docker([*ARGS_COMMANDS[cmd], args[0]])
         elif cmd == "help":
             get_console().print(HELP_TEXT)
         elif cmd == "clear":

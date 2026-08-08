@@ -194,3 +194,74 @@ def test_history_file(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
 
     assert path == cache / "scylla" / "history"
     assert path.parent.is_dir()
+
+
+# ---------------------------------------------------------------------------
+# Comandos docker no shell
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("entrada", "esperado"),
+    [
+        ("dps", ["ps"]),
+        ("dpsa", ["ps", "-a"]),
+        ("di", ["images"]),
+        ("dcps", ["compose", "ps"]),
+        ("dcup", ["compose", "up", "-d"]),
+        ("dcdown", ["compose", "down"]),
+        ("dclog", ["compose", "logs"]),
+        ("dcrestart", ["compose", "restart"]),
+    ],
+)
+def test_shell_docker_sem_argumento(
+    monkeypatch: pytest.MonkeyPatch, entrada: str, esperado: list[str]
+) -> None:
+    chamadas: list[list[str]] = []
+    monkeypatch.setattr(FakeSession, "inputs", [entrada, "exit"])
+    monkeypatch.setattr(shell, "PromptSession", FakeSession)
+    monkeypatch.setattr(shell, "run_docker", lambda a: chamadas.append(a))
+
+    shell.run_shell()
+
+    assert chamadas == [esperado]
+
+
+@pytest.mark.parametrize(
+    ("entrada", "esperado"),
+    [
+        ("dlog nginx", ["logs", "nginx"]),
+        ("dstop web", ["stop", "web"]),
+        ("dstart web", ["start", "web"]),
+        ("drm web", ["rm", "web"]),
+        ("drmi alpine", ["rmi", "alpine"]),
+    ],
+)
+def test_shell_docker_com_argumento(
+    monkeypatch: pytest.MonkeyPatch, entrada: str, esperado: list[str]
+) -> None:
+    chamadas: list[list[str]] = []
+    monkeypatch.setattr(FakeSession, "inputs", [entrada, "exit"])
+    monkeypatch.setattr(shell, "PromptSession", FakeSession)
+    monkeypatch.setattr(shell, "run_docker", lambda a: chamadas.append(a))
+
+    shell.run_shell()
+
+    assert chamadas == [esperado]
+
+
+@pytest.mark.parametrize("entrada", ["dlog", "dstop", "drmi"])
+def test_shell_docker_falta_argumento(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], entrada: str
+) -> None:
+    monkeypatch.setattr(FakeSession, "inputs", [entrada, "exit"])
+    monkeypatch.setattr(shell, "PromptSession", FakeSession)
+    # run_docker não deve ser chamado quando falta o argumento
+    monkeypatch.setattr(
+        shell, "run_docker", lambda a: pytest.fail("não deveria executar docker")
+    )
+
+    shell.run_shell()
+    err = capsys.readouterr().err
+
+    assert f"Uso: {entrada} <nome>" in err

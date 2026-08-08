@@ -4,8 +4,28 @@ from __future__ import annotations
 
 import logging
 import sys
+from typing import Any
 
 import structlog
+
+
+class _CurrentStderrLogger(structlog.PrintLogger):
+    """PrintLogger que sempre escreve no ``sys.stderr`` atual.
+
+    Resolver o stderr no momento da escrita (em vez de capturá-lo na criação)
+    evita escrever em arquivos fechados depois de isolamentos de teste/CLI.
+    """
+
+    def msg(self, message: str) -> None:
+        with self._lock:
+            print(message, file=sys.stderr, flush=True)
+
+
+class _CurrentStderrFactory:
+    """LoggerFactory do structlog que usa o stderr atual a cada escrita."""
+
+    def __call__(self, *args: Any, **kwargs: Any) -> structlog.PrintLogger:
+        return _CurrentStderrLogger()
 
 
 def setup_logging(*, json_logs: bool = False) -> None:
@@ -33,6 +53,6 @@ def setup_logging(*, json_logs: bool = False) -> None:
             renderer,
         ],
         wrapper_class=structlog.make_filtering_bound_logger(logging.INFO),
-        logger_factory=structlog.PrintLoggerFactory(file=sys.stderr),
+        logger_factory=_CurrentStderrFactory(),
         cache_logger_on_first_use=True,
     )
