@@ -99,26 +99,31 @@ $x&:; +&&x..   +       x&&.:;&&x&&;&++:xx: & :;++x
 """
 
 
+DARK_BLUE = "#003B73"
+
+
 def welcome_screen() -> None:
-    """Tela de apresentação estilo Hermes Agent."""
-    content = Text.from_markup(
-        "[bold cyan]Gerenciador de processos e Docker para Linux[/]\n\n"
+    """Tela de apresentação estilo Hermes Agent (logo dentro do painel)."""
+    logo = Text(LOGO, style=f"bold {DARK_BLUE}")
+    info = Text.from_markup(
+        f"\n[bold {DARK_BLUE}]Gerenciador de processos e Docker para Linux[/]\n\n"
         "[yellow]Comandos:[/] [bold]ps[/] | [bold]kill <PID>[/] | [bold]dps[/] "
         "| [bold]help[/] | [bold]exit[/]\n"
         "[dim]Dica: d* = docker (dps, dlog...), dc* = compose (dcup, dcdown...). "
         "Tab autocompleta, ↑/↓ navega o histórico, Ctrl+D encerra.[/]"
     )
+    content = Text()
+    content.append(logo)
+    content.append(info)
     panel = Panel(
         content,
-        title=f"[bold cyan]Scylla CLI[/]  [dim]v{__version__}[/]",
-        subtitle="digite [bold]help[/] para ajuda completa",
-        border_style="cyan",
+        title=f"[bold {DARK_BLUE}]Scylla CLI[/]  [dim]v{__version__}[/]",
+        subtitle=f"digite [bold {DARK_BLUE}]help[/] para ajuda completa",
+        border_style=DARK_BLUE,
         box=box.ROUNDED,
         padding=(1, 2),
     )
-    console = get_console()
-    console.print(LOGO, style="bold cyan", highlight=False)
-    console.print(panel)
+    get_console().print(panel)
 
 
 def show_process_panel(proc: ProcessInfo) -> None:

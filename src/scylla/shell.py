@@ -45,7 +45,7 @@ COMMANDS = [
     "quit",
 ]
 
-PROMPT_STYLE = Style.from_dict({"prompt": "bold cyan"})
+PROMPT_STYLE = Style.from_dict({"prompt": "bold blue"})
 
 HELP_TEXT = """\
 [bold cyan]Scylla CLI[/] — comandos disponíveis:
