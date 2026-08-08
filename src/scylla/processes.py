@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import time
 from dataclasses import dataclass
 
 import psutil
@@ -33,15 +34,34 @@ def _clean(value: object, fallback: str = "?") -> str:
     return str(value).strip() if value else fallback
 
 
+def _cpu_percent(proc: psutil.Process) -> float:
+    """CPU% médio desde o início do processo (via /proc/<pid>/stat).
+
+    O ``psutil`` só calcula CPU instantânea com duas amostras; numa única
+    varredura ele retorna 0.0. Aqui usamos o tempo de CPU acumulado dividido
+    pelo tempo de vida do processo, o que dá um valor real e barato.
+    """
+    try:
+        with proc.oneshot():
+            cpu_times = proc.cpu_times()
+            create_time = proc.create_time()
+        elapsed = time.time() - create_time
+        if elapsed <= 0:
+            return 0.0
+        total = cpu_times.user + cpu_times.system
+        return total / elapsed * 100.0
+    except (psutil.NoSuchProcess, psutil.AccessDenied, ValueError):
+        return 0.0
+
+
 def list_processes() -> list[ProcessInfo]:
-    """Lista todos os processos visíveis, ordenados por PID."""
+    """Lista todos os processos visíveis (sem ordenação)."""
     procs: list[ProcessInfo] = []
     for proc in psutil.process_iter(
         attrs=[
             "pid",
             "name",
             "username",
-            "cpu_percent",
             "memory_percent",
             "status",
             "cmdline",
@@ -54,7 +74,7 @@ def list_processes() -> list[ProcessInfo]:
                     pid=int(info["pid"]),
                     name=_clean(info["name"]),
                     username=_clean(info["username"]),
-                    cpu_percent=float(info["cpu_percent"] or 0.0),
+                    cpu_percent=_cpu_percent(proc),
                     memory_percent=float(info["memory_percent"] or 0.0),
                     status=_clean(info["status"]),
                     cmdline=" ".join(info["cmdline"] or [])[:CMD_MAX_LEN],
@@ -63,8 +83,27 @@ def list_processes() -> list[ProcessInfo]:
         except (psutil.NoSuchProcess, psutil.AccessDenied, ValueError):
             # Processo morreu no meio da iteração ou sem permissão: ignora.
             continue
-    procs.sort(key=lambda p: p.pid)
     return procs
+
+
+SORT_KEYS = {
+    "pid": lambda p: p.pid,
+    "cpu": lambda p: p.cpu_percent,
+    "mem": lambda p: p.memory_percent,
+    "resources": lambda p: p.cpu_percent + p.memory_percent,
+}
+
+
+def sort_processes(procs: list[ProcessInfo], by: str = "resources") -> list[ProcessInfo]:
+    """Ordena processos.
+
+    ``by``: ``pid`` (crescente) ou ``cpu``/``mem``/``resources`` (decrescente).
+    O padrão ``resources`` coloca primeiro os que mais consomem CPU+memória.
+    """
+    if by == "pid":
+        return sorted(procs, key=lambda p: p.pid)
+    key = SORT_KEYS.get(by, SORT_KEYS["resources"])
+    return sorted(procs, key=key, reverse=True)
 
 
 def get_process_info(pid: int) -> ProcessInfo:

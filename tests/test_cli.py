@@ -47,6 +47,33 @@ def test_ps_mostra_tabela(monkeypatch: pytest.MonkeyPatch) -> None:
     assert "42" in result.output
 
 
+def test_ps_sort_option(monkeypatch: pytest.MonkeyPatch) -> None:
+    proc = ProcessInfo(
+        pid=42,
+        name="sleep",
+        username="lucas",
+        cpu_percent=0.0,
+        memory_percent=0.1,
+        status="sleeping",
+        cmdline="sleep 300",
+    )
+    monkeypatch.setattr("scylla.cli.list_processes", lambda: [proc])
+
+    result = runner.invoke(app, ["ps", "--sort", "mem"])
+
+    assert result.exit_code == 0
+    assert "sleep" in result.output
+
+
+def test_ps_sort_invalido(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("scylla.cli.list_processes", list)
+
+    result = runner.invoke(app, ["ps", "--sort", "xyz"])
+
+    assert result.exit_code == 1
+    assert "Ordenação inválida" in result.output
+
+
 def test_kill_com_yes(monkeypatch: pytest.MonkeyPatch) -> None:
     proc = ProcessInfo(
         pid=42,

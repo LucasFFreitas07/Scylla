@@ -12,7 +12,13 @@ from scylla import shell as shell_mod
 from scylla.dockertools import ARGS_COMMANDS, DOCKER_COMMANDS, run_docker
 from scylla.errors import ScyllaError
 from scylla.logging_setup import setup_logging
-from scylla.processes import get_process_info, kill_process, list_processes
+from scylla.processes import (
+    SORT_KEYS,
+    get_process_info,
+    kill_process,
+    list_processes,
+    sort_processes,
+)
 from scylla.ui import confirm_kill, print_error, render_table, show_process_panel
 
 app = typer.Typer(
@@ -41,17 +47,28 @@ def callback(
 
 
 @app.command()
-def ps() -> None:
+def ps(
+    sort_by: str = typer.Option(
+        "resources",
+        "--sort",
+        "-s",
+        help="Ordena por: pid, cpu, mem ou resources (padrão: resources).",
+    ),
+) -> None:
     """Lista os processos do sistema em uma tabela."""
     log = structlog.get_logger("scylla.cli.ps")
+    if sort_by not in SORT_KEYS:
+        print_error(f"Ordenação inválida: {sort_by}. Use: pid, cpu, mem ou resources.")
+        raise typer.Exit(1)
     try:
         procs = list_processes()
     except ScyllaError as exc:
         print_error(str(exc))
         log.warning("ps_falhou", erro=str(exc))
         raise typer.Exit(exc.exit_code) from exc
+    procs = sort_processes(procs, by=sort_by)
     render_table(procs)
-    log.debug("ps_ok", total=len(procs))
+    log.debug("ps_ok", total=len(procs), sort=sort_by)
 
 
 @app.command()

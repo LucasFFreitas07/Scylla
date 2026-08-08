@@ -13,7 +13,7 @@ from prompt_toolkit.styles import Style
 
 from scylla.dockertools import ARGS_COMMANDS, DOCKER_COMMANDS, run_docker
 from scylla.errors import ScyllaError
-from scylla.processes import get_process_info, kill_process, list_processes
+from scylla.processes import get_process_info, kill_process, list_processes, sort_processes
 from scylla.ui import (
     confirm_kill,
     get_console,
@@ -94,6 +94,7 @@ def _run_ps() -> None:
         print_error(str(exc))
         log.warning("ps_falhou", erro=str(exc))
         return
+    procs = sort_processes(procs)  # padrão: recursos (cpu+mem) decrescente
     render_table(procs)
     log.debug("ps_ok", total=len(procs))
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import time
 from contextlib import nullcontext
 
 import psutil
@@ -14,14 +15,44 @@ from scylla.errors import (
     PermissionDeniedError,
     ProcessNotFoundError,
 )
-from scylla.processes import get_process_info, kill_process, list_processes
+from scylla.processes import (
+    ProcessInfo,
+    get_process_info,
+    kill_process,
+    list_processes,
+    sort_processes,
+)
+
+
+class _FakeCpuTimes:
+    def __init__(self, user: float = 0.0, system: float = 0.0) -> None:
+        self.user = user
+        self.system = system
 
 
 class FakeProc:
-    """Processo fake: apenas o atributo .info consumido por process_iter."""
+    """Processo fake: .info consumido por process_iter + cpu_times/create_time."""
 
-    def __init__(self, info: dict) -> None:
+    def __init__(
+        self,
+        info: dict,
+        cpu_times: _FakeCpuTimes | None = None,
+        create_time: float | None = None,
+    ) -> None:
         self.info = info
+        self._cpu_times = cpu_times if cpu_times is not None else _FakeCpuTimes()
+        self._create_time = create_time
+
+    def cpu_times(self) -> _FakeCpuTimes:
+        return self._cpu_times
+
+    def create_time(self) -> float:
+        if self._create_time is None:
+            return time.time()  # elapsed ~0 → cpu 0.0
+        return self._create_time
+
+    def oneshot(self) -> object:
+        return nullcontext()
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"FakeProc(pid={self.info.get('pid')})"
@@ -63,7 +94,7 @@ def _info(
 # ---------------------------------------------------------------------------
 
 
-def test_list_processes_ordena_por_pid(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_list_processes_preserva_ordem(monkeypatch: pytest.MonkeyPatch) -> None:
     procs = [
         FakeProc(_info(2, "b")),
         FakeProc(_info(1, "a")),
@@ -73,7 +104,7 @@ def test_list_processes_ordena_por_pid(monkeypatch: pytest.MonkeyPatch) -> None:
 
     result = list_processes()
 
-    assert [p.pid for p in result] == [1, 2, 3]
+    assert [p.pid for p in result] == [2, 1, 3]  # ordem de iteração
 
 
 def test_list_processes_preenche_campos(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -90,10 +121,23 @@ def test_list_processes_preenche_campos(monkeypatch: pytest.MonkeyPatch) -> None
     assert p.pid == 7
     assert p.name == "bash"
     assert p.username == "lucas"
-    assert p.cpu_percent == 1.0
+    assert p.cpu_percent == 0.0  # elapsed ~0 → cpu 0.0
     assert p.memory_percent == 2.0
     assert p.status == "running"
     assert p.cmdline == "bash -c echo oi"
+
+
+def test_list_processes_computa_cpu(monkeypatch: pytest.MonkeyPatch) -> None:
+    fake = FakeProc(
+        _info(7, "bash"),
+        cpu_times=_FakeCpuTimes(user=5.0, system=0.0),
+        create_time=time.time() - 10,
+    )
+    monkeypatch.setattr(processes.psutil, "process_iter", lambda **kwargs: [fake])
+
+    result = list_processes()
+
+    assert result[0].cpu_percent == pytest.approx(50.0, abs=1.0)
 
 
 def test_list_processes_ignora_falhas(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -120,6 +164,50 @@ def test_list_processes_trunca_cmdline(monkeypatch: pytest.MonkeyPatch) -> None:
     result = list_processes()
 
     assert len(result[0].cmdline) == processes.CMD_MAX_LEN
+
+
+# ---------------------------------------------------------------------------
+# sort_processes
+# ---------------------------------------------------------------------------
+
+
+def _mk(pid: int, cpu: float, mem: float) -> ProcessInfo:
+    return ProcessInfo(
+        pid=pid,
+        name="proc",
+        username="lucas",
+        cpu_percent=cpu,
+        memory_percent=mem,
+        status="running",
+        cmdline="cmd",
+    )
+
+
+def test_sort_resources_desc() -> None:
+    procs = [_mk(1, 10, 5), _mk(2, 1, 50), _mk(3, 20, 20)]
+    # scores: p2=51, p3=40, p1=15
+    result = sort_processes(procs)
+    assert [p.pid for p in result] == [2, 3, 1]
+
+
+def test_sort_cpu() -> None:
+    procs = [_mk(1, 10, 5), _mk(2, 50, 1)]
+    assert [p.pid for p in sort_processes(procs, by="cpu")] == [2, 1]
+
+
+def test_sort_mem() -> None:
+    procs = [_mk(1, 10, 5), _mk(2, 50, 1)]
+    assert [p.pid for p in sort_processes(procs, by="mem")] == [1, 2]
+
+
+def test_sort_pid_crescente() -> None:
+    procs = [_mk(2, 0, 0), _mk(1, 0, 0)]
+    assert [p.pid for p in sort_processes(procs, by="pid")] == [1, 2]
+
+
+def test_sort_invalido_fallback_resources() -> None:
+    procs = [_mk(1, 10, 5), _mk(2, 1, 50)]
+    assert [p.pid for p in sort_processes(procs, by="xyz")] == [2, 1]
 
 
 # ---------------------------------------------------------------------------
