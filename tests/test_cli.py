@@ -74,6 +74,32 @@ def test_ps_sort_invalido(monkeypatch: pytest.MonkeyPatch) -> None:
     assert "Ordenação inválida" in result.output
 
 
+def test_ps_top(monkeypatch: pytest.MonkeyPatch) -> None:
+    procs = [
+        ProcessInfo(1, "alpha", "lucas", 10, 5, "running", "alpha"),  # score 15
+        ProcessInfo(2, "bravo", "lucas", 1, 50, "running", "bravo"),  # score 51
+        ProcessInfo(3, "charlie", "lucas", 20, 20, "running", "charlie"),  # score 40
+    ]
+    monkeypatch.setattr("scylla.cli.list_processes", lambda: procs)
+
+    result = runner.invoke(app, ["ps", "--top", "2"])
+
+    assert result.exit_code == 0
+    assert "bravo" in result.output
+    assert "charlie" in result.output
+    assert "alpha" not in result.output
+    assert "top 2" in result.output
+
+
+def test_ps_top_invalido(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("scylla.cli.list_processes", list)
+
+    result = runner.invoke(app, ["ps", "--top", "0"])
+
+    assert result.exit_code == 1
+    assert "positivo" in result.output
+
+
 def test_kill_com_yes(monkeypatch: pytest.MonkeyPatch) -> None:
     proc = ProcessInfo(
         pid=42,

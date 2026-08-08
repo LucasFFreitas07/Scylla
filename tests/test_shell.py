@@ -187,6 +187,40 @@ def test_shell_ps_erro(
     assert "Falha ao listar processos" in err
 
 
+def test_shell_ps_top(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    procs = [
+        ProcessInfo(1, "alpha", "lucas", 100, 5, "running", "alpha"),
+        ProcessInfo(2, "bravo", "lucas", 1, 50, "running", "bravo"),
+        ProcessInfo(3, "charlie", "lucas", 20, 20, "running", "charlie"),
+    ]
+    monkeypatch.setattr(FakeSession, "inputs", ["ps 2", "exit"])
+    monkeypatch.setattr(shell, "PromptSession", FakeSession)
+    monkeypatch.setattr(shell, "list_processes", lambda: procs)
+
+    shell.run_shell()
+    out = capsys.readouterr().out
+
+    # scores: alpha=105, bravo=51, charlie=40 → top 2 = alpha, bravo
+    assert "alpha" in out
+    assert "bravo" in out
+    assert "charlie" not in out
+    assert "top 2" in out
+
+
+def test_shell_ps_top_invalido(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(FakeSession, "inputs", ["ps abc", "exit"])
+    monkeypatch.setattr(shell, "PromptSession", FakeSession)
+
+    shell.run_shell()
+    err = capsys.readouterr().err
+
+    assert "Uso: ps" in err
+
+
 def test_history_file(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     cache = tmp_path / "cache"
     monkeypatch.setenv("XDG_CACHE_HOME", str(cache))

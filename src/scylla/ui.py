@@ -39,9 +39,12 @@ STATUS_COLORS = {
 }
 
 
-def render_table(procs: list[ProcessInfo]) -> None:
+def render_table(procs: list[ProcessInfo], *, top: int | None = None) -> None:
     """Renderiza a tabela de processos."""
-    table = Table(title=f"Processos — {len(procs)}", box=box.ROUNDED, expand=False)
+    title = f"Processos — {len(procs)}"
+    if top is not None:
+        title += f" (top {top})"
+    table = Table(title=title, box=box.ROUNDED, expand=False)
     table.add_column("PID", justify="right", style="cyan", no_wrap=True)
     table.add_column("NOME", style="bold")
     table.add_column("USUÁRIO")

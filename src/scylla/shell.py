@@ -86,8 +86,40 @@ def _history_file() -> Path:
     return history_dir / "history"
 
 
-def _run_ps() -> None:
+def _parse_ps_limit(args: list[str]) -> int | None:
+    """Interpreta `ps`, `ps <N>` ou `ps --top <N>`.
+
+    Retorna o limite ou None (imprime erro se a sintaxe for inválida).
+    """
+    if not args:
+        return None
+    if len(args) == 1 and args[0].isdigit():
+        n = int(args[0])
+        if n > 0:
+            return n
+        print_error("O limite deve ser um inteiro positivo.")
+        return None
+    if len(args) == 2 and args[0] == "--top":
+        try:
+            n = int(args[1])
+        except ValueError:
+            print_error(f"Limite inválido: {args[1]}")
+            return None
+        if n <= 0:
+            print_error("O limite deve ser um inteiro positivo.")
+            return None
+        return n
+    print_error("Uso: ps [N] ou ps --top <N>")
+    return None
+
+
+def _run_ps(args: list[str]) -> None:
     log = structlog.get_logger("scylla.shell.ps")
+    top: int | None = None
+    if args:
+        top = _parse_ps_limit(args)
+        if top is None:
+            return  # erro já impresso pelo parser
     try:
         procs = list_processes()
     except ScyllaError as exc:
@@ -95,8 +127,10 @@ def _run_ps() -> None:
         log.warning("ps_falhou", erro=str(exc))
         return
     procs = sort_processes(procs)  # padrão: recursos (cpu+mem) decrescente
-    render_table(procs)
-    log.debug("ps_ok", total=len(procs))
+    if top is not None:
+        procs = procs[:top]
+    render_table(procs, top=top)
+    log.debug("ps_ok", total=len(procs), top=top)
 
 
 def _run_kill(args: list[str]) -> None:
@@ -165,7 +199,7 @@ def run_shell() -> None:
         if cmd in ("exit", "quit"):
             break
         if cmd == "ps":
-            _run_ps()
+            _run_ps(args)
         elif cmd == "kill":
             _run_kill(args)
         elif cmd in DOCKER_COMMANDS:

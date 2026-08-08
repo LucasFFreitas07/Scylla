@@ -54,11 +54,20 @@ def ps(
         "-s",
         help="Ordena por: pid, cpu, mem ou resources (padrão: resources).",
     ),
+    top: int | None = typer.Option(
+        None,
+        "--top",
+        "-n",
+        help="Mostra apenas os N processos de maior consumo.",
+    ),
 ) -> None:
     """Lista os processos do sistema em uma tabela."""
     log = structlog.get_logger("scylla.cli.ps")
     if sort_by not in SORT_KEYS:
         print_error(f"Ordenação inválida: {sort_by}. Use: pid, cpu, mem ou resources.")
+        raise typer.Exit(1)
+    if top is not None and top <= 0:
+        print_error("--top deve ser um inteiro positivo.")
         raise typer.Exit(1)
     try:
         procs = list_processes()
@@ -67,8 +76,10 @@ def ps(
         log.warning("ps_falhou", erro=str(exc))
         raise typer.Exit(exc.exit_code) from exc
     procs = sort_processes(procs, by=sort_by)
-    render_table(procs)
-    log.debug("ps_ok", total=len(procs), sort=sort_by)
+    if top is not None:
+        procs = procs[:top]
+    render_table(procs, top=top)
+    log.debug("ps_ok", total=len(procs), sort=sort_by, top=top)
 
 
 @app.command()
