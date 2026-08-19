@@ -43,6 +43,20 @@ def docker_available() -> bool:
     return shutil.which(DOCKER_BIN) is not None
 
 
+def validate_docker_arg(arg: str) -> str | None:
+    """Valida nome de container/imagem digitado pelo usuário.
+
+    Retorna ``None`` se válido, ou uma mensagem de erro se o argumento for
+    vazio ou começar com ``-`` (seria interpretado como flag pelo CLI docker —
+    injeção de flags, ex.: ``dlog --tail`` viraria ``docker logs --tail``).
+    """
+    if not arg:
+        return "Argumento vazio."
+    if arg.startswith("-"):
+        return f"Argumento inválido (começa com '-'): {arg}"
+    return None
+
+
 def run_docker(args: list[str]) -> int:
     """Executa ``docker <args>`` herdando stdout/stderr; retorna o exit code."""
     log = structlog.get_logger("scylla.docker")

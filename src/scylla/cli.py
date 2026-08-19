@@ -9,9 +9,15 @@ import typer
 
 from scylla import __version__
 from scylla import shell as shell_mod
-from scylla.dockertools import ARGS_COMMANDS, DOCKER_COMMANDS, run_docker
+from scylla.dockertools import (
+    ARGS_COMMANDS,
+    DOCKER_COMMANDS,
+    run_docker,
+    validate_docker_arg,
+)
 from scylla.errors import ScyllaError
 from scylla.logging_setup import setup_logging
+from scylla.obsidian import create_note
 from scylla.processes import (
     SORT_KEYS,
     get_process_info,
@@ -19,7 +25,14 @@ from scylla.processes import (
     list_processes,
     sort_processes,
 )
-from scylla.ui import confirm_kill, print_error, render_table, show_process_panel
+from scylla.ui import (
+    confirm_kill,
+    print_error,
+    render_search_results,
+    render_table,
+    show_process_panel,
+)
+from scylla.websearch import build_search_note_content, search_web
 
 app = typer.Typer(
     help="Scylla — gerencie processos e Docker do seu sistema Linux.",
@@ -104,13 +117,97 @@ def kill(
         raise typer.Exit(0)
 
     try:
-        message = kill_process(pid, force=force)
+        message = kill_process(pid, force=force, expected_create_time=info.create_time)
     except ScyllaError as exc:
         print_error(str(exc))
         log.warning("kill_falhou", pid=pid, erro=str(exc))
         raise typer.Exit(exc.exit_code) from exc
     typer.echo(message)
     log.info("kill_ok", pid=pid, force=force)
+
+
+def _docker_target(arg: str) -> list[str]:
+    """Valida o argumento de container/imagem; sai com erro se inválido.
+
+    Impede injeção de flags no CLI docker (ex.: ``dlog --tail`` viraria
+    ``docker logs --tail``).
+    """
+    erro = validate_docker_arg(arg)
+    if erro:
+        print_error(erro)
+        raise typer.Exit(1)
+    return [arg]
+
+
+@app.command()
+def obs_create(
+    name: str = typer.Argument(..., help="Nome/título da nota."),
+    folder: str | None = typer.Option(
+        None, "--folder", "-f", help="Subpasta dentro do vault (será criada se não existir)."
+    ),
+    tags: str | None = typer.Option(
+        None, "--tags", "-t", help="Tags separadas por vírgula (ex.: DevOps,Docker)."
+    ),
+    content: str | None = typer.Option(
+        None, "--content", "-c", help="Corpo da nota em markdown."
+    ),
+) -> None:
+    """Cria uma nota no vault Obsidian."""
+    log = structlog.get_logger("scylla.cli.obs_create")
+    tag_list = [t.strip() for t in tags.split(",")] if tags else None
+    try:
+        path = create_note(name, folder=folder, tags=tag_list, content=content)
+    except ScyllaError as exc:
+        print_error(str(exc))
+        log.warning("obs_create_falhou", erro=str(exc))
+        raise typer.Exit(1) from exc
+    typer.echo(f"Nota criada: {path}")
+    log.info("obs_create_ok", nota=name, pasta=folder or "(raiz)")
+
+
+@app.command()
+def search(
+    query: str = typer.Argument(..., help="Consulta de busca."),
+    limit: int = typer.Option(5, "--limit", "-n", help="Número máximo de resultados."),
+    save: bool = typer.Option(
+        False, "--save", "-s", help="Salva os resultados como nota no Obsidian."
+    ),
+    folder: str | None = typer.Option(
+        None, "--folder", "-f", help="Subpasta do vault para salvar a nota."
+    ),
+    tags: str | None = typer.Option(
+        None, "--tags", "-t", help="Tags separadas por vírgula (ex.: Busca,DevOps)."
+    ),
+) -> None:
+    """Busca na web (DuckDuckGo) e opcionalmente salva no Obsidian."""
+    log = structlog.get_logger("scylla.cli.search")
+    try:
+        results = search_web(query, limit=limit)
+    except ScyllaError as exc:
+        print_error(str(exc))
+        log.warning("search_falhou", consulta=query, erro=str(exc))
+        raise typer.Exit(1) from exc
+
+    render_search_results(query, results)
+
+    if save:
+        tag_list = [t.strip() for t in tags.split(",")] if tags else None
+        if tag_list is None:
+            tag_list = ["Busca"]
+        elif "Busca" not in tag_list:
+            tag_list.append("Busca")
+        content = build_search_note_content(query, results)
+        note_name = f"Busca - {query}"
+        try:
+            path = create_note(
+                note_name, folder=folder, tags=tag_list, content=content
+            )
+        except ScyllaError as exc:
+            print_error(str(exc))
+            log.warning("search_save_falhou", consulta=query, erro=str(exc))
+            raise typer.Exit(1) from exc
+        typer.echo(f"Nota salva: {path}")
+        log.info("search_save_ok", consulta=query, nota=note_name)
 
 
 def _exit_docker(args: list[str]) -> None:
@@ -148,31 +245,31 @@ def di() -> None:
 @app.command()
 def dlog(container: str = typer.Argument(..., help="Nome ou ID do container.")) -> None:
     """Mostra os logs de um container (docker logs <container>)."""
-    _exit_docker([*ARGS_COMMANDS["dlog"], container])
+    _exit_docker([*ARGS_COMMANDS["dlog"], *_docker_target(container)])
 
 
 @app.command()
 def dstop(container: str = typer.Argument(..., help="Nome ou ID do container.")) -> None:
     """Para um container (docker stop <container>)."""
-    _exit_docker([*ARGS_COMMANDS["dstop"], container])
+    _exit_docker([*ARGS_COMMANDS["dstop"], *_docker_target(container)])
 
 
 @app.command()
 def dstart(container: str = typer.Argument(..., help="Nome ou ID do container.")) -> None:
     """Inicia um container parado (docker start <container>)."""
-    _exit_docker([*ARGS_COMMANDS["dstart"], container])
+    _exit_docker([*ARGS_COMMANDS["dstart"], *_docker_target(container)])
 
 
 @app.command()
 def drm(container: str = typer.Argument(..., help="Nome ou ID do container.")) -> None:
     """Remove um container (docker rm <container>)."""
-    _exit_docker([*ARGS_COMMANDS["drm"], container])
+    _exit_docker([*ARGS_COMMANDS["drm"], *_docker_target(container)])
 
 
 @app.command()
 def drmi(image: str = typer.Argument(..., help="Nome ou ID da imagem.")) -> None:
     """Remove uma imagem (docker rmi <imagem>)."""
-    _exit_docker([*ARGS_COMMANDS["drmi"], image])
+    _exit_docker([*ARGS_COMMANDS["drmi"], *_docker_target(image)])
 
 
 @app.command()

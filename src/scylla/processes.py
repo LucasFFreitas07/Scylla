@@ -16,6 +16,9 @@ from scylla.errors import (
 
 CMD_MAX_LEN = 60
 
+# Tolerância (s) para comparar create_time entre inspeção e kill.
+CREATE_TIME_TOLERANCE = 1e-3
+
 
 @dataclass(frozen=True)
 class ProcessInfo:
@@ -28,6 +31,7 @@ class ProcessInfo:
     memory_percent: float
     status: str
     cmdline: str
+    create_time: float | None = None
 
 
 def _clean(value: object, fallback: str = "?") -> str:
@@ -65,6 +69,7 @@ def list_processes() -> list[ProcessInfo]:
             "memory_percent",
             "status",
             "cmdline",
+            "create_time",
         ]
     ):
         try:
@@ -78,6 +83,7 @@ def list_processes() -> list[ProcessInfo]:
                     memory_percent=float(info["memory_percent"] or 0.0),
                     status=_clean(info["status"]),
                     cmdline=" ".join(info["cmdline"] or [])[:CMD_MAX_LEN],
+                    create_time=info.get("create_time"),
                 )
             )
         except (psutil.NoSuchProcess, psutil.AccessDenied, ValueError):
@@ -121,6 +127,7 @@ def get_process_info(pid: int) -> ProcessInfo:
                 memory_percent=proc.memory_percent(),
                 status=_clean(proc.status()),
                 cmdline=" ".join(proc.cmdline() or [])[:CMD_MAX_LEN],
+                create_time=proc.create_time(),
             )
     except psutil.NoSuchProcess:
         raise ProcessNotFoundError(
@@ -132,24 +139,51 @@ def get_process_info(pid: int) -> ProcessInfo:
         ) from None
 
 
-def kill_process(pid: int, *, force: bool = False) -> str:
+def kill_process(
+    pid: int,
+    *,
+    force: bool = False,
+    expected_create_time: float | None = None,
+) -> str:
     """Mata o processo ``pid`` e retorna mensagem de sucesso.
 
     force=False: envia SIGTERM e aguarda até 3s; se continuar vivo, aplica SIGKILL.
     force=True: envia SIGKILL direto.
+
+    ``expected_create_time``: momento de criação capturado na inspeção
+    (``get_process_info``). Se informado e o PID atual pertencer a outro
+    processo (PID reutilizado pelo kernel), aborta com ``ProcessNotFoundError``
+    — evita matar um processo inocente em corrida TOCTOU.
     """
     if pid <= 0:
         raise InvalidPidError(f"PID inválido: {pid}. Use um inteiro positivo.")
     if pid == os.getpid():
         raise InvalidPidError("Não é possível matar o próprio processo scylla.")
 
+    current_create_time: float | None = None
     try:
         proc = psutil.Process(pid)
         proc_name = proc.name()
+        if expected_create_time is not None:
+            current_create_time = proc.create_time()
     except psutil.NoSuchProcess:
         raise ProcessNotFoundError(
             f"Processo {pid} não encontrado (já foi encerrado?)."
         ) from None
+    except psutil.AccessDenied:
+        raise PermissionDeniedError(
+            f"Sem permissão para inspecionar o processo {pid}."
+        ) from None
+
+    if (
+        expected_create_time is not None
+        and current_create_time is not None
+        and abs(current_create_time - expected_create_time) > CREATE_TIME_TOLERANCE
+    ):
+        raise ProcessNotFoundError(
+            f"PID {pid} foi reutilizado por outro processo desde a inspeção; "
+            "operação abortada."
+        )
 
     try:
         if force:

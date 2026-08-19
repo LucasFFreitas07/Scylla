@@ -34,7 +34,11 @@ scylla> exit
 
 Comandos do shell: `ps`, `kill <PID>`, `help`, `clear`, `exit` + comandos Docker
 (abaixo). Tab autocompleta, ↑/↓ navega o histórico (salvo em
-`~/.cache/scylla/history`), `Ctrl+D` encerra.
+`~/.cache/scylla/history` — permissões 700/600), `Ctrl+D` encerra.
+
+**Atenção de segurança:** os comandos `exec <cmd>` e `!<cmd>` rodam diretamente
+no shell do usuário (`shell=True`) com timeout de 300s. Equivale a um shell
+completo — use com cuidado em ambientes com privilégios restritos.
 
 ## Comandos Docker (comandos mínimos)
 
